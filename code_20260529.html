@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI情绪聊天</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:"微软雅黑",sans-serif;}
+        body{height:100vh;display:flex;background:#eef2f3;color:#333;overflow:hidden;}
+        
+        .left-nav{
+            width:240px;
+            background:#e3eaf2;
+            border-right:1px solid #ccd7e6;
+            padding:20px 10px;
+            flex-shrink:0;
+            z-index:10;
+            display:flex;
+            flex-direction:column;
+            transition: width 0.3s ease;
+            overflow:hidden;
+        }
+        .left-nav.collapsed{
+            width:0;
+            padding:0;
+            border:none;
+        }
+        .role-list-container{
+            flex:1;
+            overflow-y:auto;
+            padding-bottom:10px;
+        }
+        .nav-title{font-size:18px;font-weight:bold;margin-bottom:10px;text-align:center;color:#4a5b73;white-space:nowrap;}
+        
+        .role-item{
+            padding:10px 35px 10px 15px;
+            margin:8px 0;
+            border-radius:12px;
+            cursor:pointer;
+            border:1px solid transparent;
+            color:#4a5b73;
+            font-size:15px;
+            transition:0.2s;
+            position:relative;
+            user-select:none;
+            white-space:nowrap;
+        }
+        .role-item.active{background:#9cb8e5;border-color:#8aa6d8;color:#fff;}
+        .role-item:hover{background:#d1ddec;}
+        
+        .role-more{
+            position:absolute;
+            right:10px;top:50%;
+            transform:translateY(-50%);
+            width:24px;height:24px;
+            display:flex;align-items:center;justify-content:center;
+            font-size:16px;
+            color:#666;
+            cursor:pointer;
+            z-index:2;
+        }
+        
+        .role-menu{
+            position:absolute;
+            right:0;top:30px;
+            background:#fff;
+            border-radius:8px;
+            box-shadow:0 2px 10px rgba(0,0,0,0.1);
+            width:110px;
+            z-index:9999;
+            overflow:hidden;
+            display:none;
+        }
+        .role-menu div{
+            padding:8px 12px;
+            font-size:14px;
+            cursor:pointer;
+        }
+        .role-menu div:hover{background:#f0f0f0;}
+        
+        .add-role{
+            margin-top:10px;
+            padding:10px;
+            text-align:center;
+            background:#9cb8e5;
+            border-radius:12px;
+            cursor:pointer;
+            color:#fff;
+            font-size:15px;
+            transition:0.2s;
+            flex-shrink: 0;
+            white-space:nowrap;
+        }
+        .add-role:hover{background:#8aa6d8;}
+        
+        /* 一键清空按钮（增加点击反馈） */
+        .clear-all-btn{
+            margin-top:8px;
+            padding:8px;
+            text-align:center;
+            background:#ff4444;
+            border-radius:12px;
+            cursor:pointer;
+            color:#fff;
+            font-size:14px;
+            transition:0.2s;
+            flex-shrink: 0;
+            white-space:nowrap;
+            user-select:none;
+        }
+        .clear-all-btn:hover{background:#cc0000;}
+        .clear-all-btn:active{transform:scale(0.95);}
+        
+        .branch-btn{
+            margin-top:8px;
+            font-size:12px;
+            text-align:left;
+            color:#4a5b73;
+            cursor:pointer;
+            padding:4px 8px;
+            border-radius:6px;
+            border:1px dashed #8aa6d8;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            white-space:nowrap;
+        }
+        .branch-btn.active{background:#9cb8e5;color:#fff;border:1px solid #8aa6d8;}
+        .branch-btn:hover{background:#d1ddec;}
+        .branch-btn.active:hover{background:#8aa6d8;}
+        
+        .main-wrap{
+            flex:1;
+            height:100vh;
+            display:flex;
+            flex-direction:column;
+            min-width:0;
+        }
+        .phone-status-bar{height:30px;background:#f5f7fa;display:flex;justify-content:space-between;align-items:center;padding:0 20px;font-size:13px;color:#555;flex-shrink:0;}
+        .chat-nav-bar{height:50px;background:#f5f7fa;display:flex;align-items:center;justify-content:space-between;padding:0 15px;border-bottom:1px solid #e1e8f0;flex-shrink:0;}
+        .nav-left{display:flex;align-items:center;gap:10px;}
+        .back-btn{font-size:20px;cursor:pointer;user-select:none;}
+        .chat-info{display:flex;flex-direction:column;}
+        .chat-name{font-size:17px;font-weight:bold;color:#333;}
+        .chat-tip{font-size:12px;color:#888;}
+        .nav-right{display:flex;gap:15px;font-size:20px;cursor:pointer;align-items:center;user-select:none;}
+
+        .mood-fixed-bar{
+            width: 100%;
+            padding: 5px 0;
+            text-align: center;
+            background: #f9fafc;
+            border-bottom:1px solid #eee;
+            flex-shrink:0;
+        }
+        .emotion-badge{
+            display:inline-block; padding:3px 8px; border-radius:10px;
+            font-size:12px; font-weight:bold; background:#fff;
+            box-shadow:0 0 4px rgba(0,0,0,0.1);
+        }
+        .emo-calm{color:#888;}
+        .emo-happy{color:#ff5e87;}
+        .emo-good{color:#20c997;}
+        .emo-sad{color:#4e9fff;}
+        .emo-angry{color:#ff4444;}
+
+        .chat-panel{
+            flex:1;
+            display:flex;
+            flex-direction:column;
+            background:#f9fafc;
+            position:relative;
+            min-height:0;
+        }
+        .chat-wallpaper{
+            position:absolute; top:0; left:0; width:100%; height:100%;
+            background-size:cover; background-position:center;
+            background-repeat:no-repeat;
+            opacity:0.15; z-index:1; display:none;
+        }
+        .chat-content{
+            padding:15px;
+            overflow-y:auto;
+            flex:1;
+            z-index:2;
+        }
+        .bg-layer{position:absolute;left:0;top:0;right:0;bottom:0;z-index:1;}
+        .mask-layer{position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(255,255,255,0.3);z-index:2;}
+        .msg-self,.msg-role{position:relative;z-index:3;max-width:72%;margin:10px 0;display:flex;align-items:flex-start;}
+        .msg-self{margin-left:auto;flex-direction:row-reverse;}
+        .self-text{background:#b3d4fc;color:#222;padding:10px 14px;border-radius:14px;font-size:15px;line-height:1.5;position:relative;}
+        .msg-role{margin-right:auto;flex-direction:row;}
+        .role-text{background:#fff;color:#222;padding:10px 14px;border-radius:14px;font-size:15px;line-height:1.5;border:1px solid #e1e8f0;}
+        .avatar{width:40px;height:40px;border-radius:50%;background:#eee;margin:0 8px;overflow:hidden;position:relative;flex-shrink:0;}
+        .avatar img{width:100%;height:100%;object-fit:cover;display:block;}
+        
+        .quote-content{font-size:12px;color:rgba(0,0,0,0.6);background:rgba(0,0,0,0.05);padding:4px 8px;border-radius:6px;margin-bottom:4px;}
+        .msg-time{font-size:10px;color:#888;margin-top:4px;text-align:right;}
+        
+        .chat-input-area{
+            background:#f5f7fa;
+            padding:10px 12px;
+            border-top:1px solid #e1e8f0;
+            flex-shrink:0;
+            z-index:999;
+            width:100%;
+        }
+        .tool-bar{display:flex;gap:10px;margin-bottom:8px;align-items:center;flex-wrap:nowrap;}
+        .chat-input{display:flex;gap:8px;align-items:center;flex-wrap:nowrap;}
+        .tool-icon{font-size:20px;cursor:pointer;padding:4px;user-select:none;}
+        .chat-input textarea{
+            flex:1;
+            border:none;
+            outline:none;
+            background:#fff;
+            border-radius:20px;
+            padding:10px 16px;
+            font-size:15px;
+            resize:none;
+            height:40px;
+            line-height:1.4;
+        }
+        .send-btn{
+            background:#9cb8e5;
+            color:#fff;
+            border:none;
+            padding:10px 16px;
+            border-radius:16px;
+            font-size:15px;
+            cursor:pointer;
+            transition:0.2s;
+        }
+        .send-btn:hover{background:#8aa6d8;}
+        .more-btn{font-size:24px;color:#555;cursor:pointer;padding:4px;user-select:none;}
+        .more-panel,.emoji-panel{
+            display:none;
+            grid-template-columns:repeat(4,1fr);
+            gap:15px;
+            padding:15px;
+            background:#f5f7fa;
+            position:absolute;
+            bottom:100%;
+            left:0;
+            right:0;
+            z-index:9999;
+            max-height:220px;
+            overflow-y:auto;
+            border-top:1px solid #e1e8f0;
+        }
+        .more-panel.show,.emoji-panel.show{display:grid;}
+        .more-item,.emoji-item{display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;user-select:none;}
+        .more-icon{width:50px;height:50px;background:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 1px 3 rgba(0,0,0,0.1);}
+        .more-text{font-size:12px;color:#555;}
+        .emoji-item{font-size:28px;}
+        .chat-img{max-width:200px;border-radius:10px;}
+        .music-card{background:#fff;border-radius:10px;padding:10px;max-width:260px;}
+        .location-card{width:220px;height:120px;background:#9cb8e5;border-radius:10px;padding:10px;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;}
+        .transfer-card{width:220px;background:#fff;border-radius:10px;padding:12px;border:1px solid #e1e8f0;}
+        .transfer-money{font-size:20px;color:#e64340;font-weight:bold;}
+        .transfer-note{font-size:13px;color:#666;margin-top:4px;}
+        .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:none;align-items:center;justify-content:center;}
+        .modal.show{display:flex;}
+        .modal-box{width:85%;background:#fff;border-radius:12px;padding:20px;max-height:80vh;overflow-y:auto;}
+        .modal-box.bottom{width:100%;border-radius:12px 12px 0 0;padding:16px;}
+        .modal-title{font-size:16px;font-weight:bold;margin-bottom:15px;text-align:center;}
+        .modal-input{width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;margin-bottom:15px;}
+        .modal-btn{padding:8px 20px;border-radius:8px;border:none;cursor:pointer;}
+        .btn-confirm{background:#9cb8e5;color:#fff;}
+        .btn-cancel{background:#eee;color:#333;}
+        
+        .avatar-modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:99999;display:none;align-items:center;justify-content:center;}
+        .avatar-modal.show{display:flex;}
+        .avatar-modal-box{width:80%;background:#fff;border-radius:16px;padding:20px;}
+        .avatar-modal-title{text-align:center;font-size:17px;font-weight:bold;margin-bottom:20px;}
+        .avatar-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #eee;}
+        .avatar-row-title{font-size:15px;}
+        .avatar-btn{background:#9cb8e5;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:14px;cursor:pointer;}
+        .avatar-close{text-align:center;margin-top:16px;color:#666;cursor:pointer;}
+        
+        .api-modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:99999;display:none;align-items:center;justify-content:center;}
+        .api-modal.show{display:flex;}
+        .api-modal-box{width:90%;max-width:380px;background:#fff;border-radius:16px;padding:20px;}
+        .api-title{text-align:center;font-size:17px;font-weight:bold;margin-bottom:16px;}
+        .api-item{margin-bottom:12px;}
+        .api-label{font-size:14px;margin-bottom:4px;display:block;}
+        .api-input{width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px;}
+        .api-save{background:#9cb8e5;color:#fff;border:none;width:100%;padding:10px;border-radius:8px;margin-top:10px;cursor:pointer;}
+        .api-close{text-align:center;margin-top:12px;color:#666;cursor:pointer;}
+        input[type="file"]{display:none;}
+    </style>
+</head>
+<body>
+
+<input type="file" id="imagePicker" accept="image/*">
+<input type="file" id="audioPicker" accept="audio/*">
+<input type="file" id="avatarMy" accept="image/*">
+<input type="file" id="avatarRole" accept="image/*">
+<input type="file" id="wallpaperPick" accept="image/*">
+
+<div class="left-nav" id="leftNav">
+    <div class="nav-title">角色&会话分支</div>
+    <div class="role-list-container" id="roleList"></div>
+    <div class="add-role" id="addRoleBtn">+ 新建角色</div>
+    <!-- 移除了内联onclick，改用JS绑定 -->
+    <div class="clear-all-btn" id="clearAllBtn">🗑️ 清空所有数据</div>
+</div>
+
+<div class="main-wrap">
+    <div class="phone-status-bar">
+        <span id="statusTime">00:00</span>
+        <div class="status-right"><span>🌙</span><span>🔊</span><span>📶</span><span>🔋</span></div>
+    </div>
+
+    <div class="chat-nav-bar">
+        <div class="nav-left">
+            <span class="back-btn" id="toggleNavBtn">←</span>
+            <div class="chat-info">
+                <div class="chat-name" id="chatNavName">未选择角色</div>
+                <div class="chat-tip" id="branchTip">单分支会话</div>
+            </div>
+        </div>
+        <div class="nav-right">
+            <span id="newBranchBtn">🔀</span>
+            <span id="clearChatBtn">🗑️</span>
+            <span id="apiBtn">⚙️</span>
+            <span id="avatarBtn">❤️</span>
+        </div>
+    </div>
+
+    <div class="mood-fixed-bar">
+        <span id="moodBadge" class="emotion-badge emo-calm">平静</span>
+    </div>
+
+    <div class="chat-panel">
+        <div class="chat-wallpaper" id="chatWallpaper"></div>
+        <div class="chat-content" id="chatBox">
+            <div class="bg-layer"></div><div class="mask-layer"></div>
+        </div>
+
+        <div class="chat-input-area">
+            <div class="tool-bar">
+                <span class="tool-icon" id="emojiBtn">😀</span>
+                <span class="tool-icon" id="musicBtn">🎵</span>
+                <span class="tool-icon" id="translateBtn">🌐</span>
+                <span class="tool-icon" id="rerollBtn">🔁</span>
+                <span class="tool-icon" id="memoryBtn">📖</span>
+            </div>
+            <div class="chat-input">
+                <textarea id="sendText" placeholder="输入消息..." oninput="autoResizeTextarea(this)"></textarea>
+                <span class="more-btn" id="moreBtn">⊕</span>
+                <button class="send-btn" id="sendBtn">发送</button>
+            </div>
+            <div class="emoji-panel" id="emojiPanel"></div>
+            <div class="more-panel" id="morePanel">
+                <div class="more-item" id="imageItem"><div class="more-icon">🖼️</div><div class="more-text">图片</div></div>
+                <div class="more-item" id="musicItem"><div class="more-icon">🎵</div><div class="more-text">音乐</div></div>
+                <div class="more-item" id="locationItem"><div class="more-icon">📍</div><div class="more-text">定位</div></div>
+                <div class="more-item" id="transferItem"><div class="more-icon">💰</div><div class="more-text">转账</div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="rolePromptModal">
+    <div class="modal-box" style="width:90%;max-width:400px;">
+        <div class="modal-title">角色设置</div>
+        <input class="modal-input" id="roleNameInput" placeholder="角色名称">
+        <textarea id="rolePromptText" style="width:100%;height:220px;border-radius:8px;padding:10px;font-size:14px;resize:none;border:1px solid #ddd;" placeholder="角色人设/提示词"></textarea>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;">
+            <button class="modal-btn btn-cancel" id="cancelRoleBtn">取消</button>
+            <button class="modal-btn btn-confirm" id="saveRoleBtn">保存</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="branchEditModal">
+    <div class="modal-box" style="width:90%;max-width:360px;">
+        <div class="modal-title">分支管理</div>
+        <input class="modal-input" id="branchEditName" placeholder="输入分支名称">
+        <div style="display:flex;gap:8px;justify-content:space-between;margin-top:10px;">
+            <button class="modal-btn" style="background:#ff4444;color:#fff;" id="deleteBranchBtn">删除分支</button>
+            <div style="display:flex;gap:8px;">
+                <button class="modal-btn btn-cancel" id="cancelBranchBtn">取消</button>
+                <button class="modal-btn btn-confirm" id="saveBranchBtn">保存</button>
+            </div>
+        </div>
+        <div style="font-size:12px;color:#888;margin-top:10px;text-align:center;">
+            提示：每个角色至少保留1个分支
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="musicModal">
+    <div class="modal-box">
+        <div class="modal-title">音乐</div>
+        <input class="modal-input" id="musicUrl" placeholder="输入音乐链接">
+        <div style="display:flex;gap:8px;">
+            <button class="modal-btn btn-confirm" id="sendMusicBtn">发送</button>
+            <button class="modal-btn" id="localMusicBtn">本地音乐</button>
+            <button class="modal-btn btn-cancel" id="cancelMusicBtn">取消</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="locationModal">
+    <div class="modal-box bottom">
+        <div class="modal-title">发送位置</div>
+        <input class="modal-input" id="locationText" placeholder="输入位置名称">
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
+            <button class="modal-btn btn-cancel" id="cancelLocationBtn">取消</button>
+            <button class="modal-btn btn-confirm" id="sendLocationBtn">发送</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="transferModal">
+    <div class="modal-box bottom">
+        <div class="modal-title">转账</div>
+        <input class="modal-input" id="transferMoney" placeholder="金额" type="number">
+        <input class="modal-input" id="transferNote" placeholder="备注">
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
+            <button class="modal-btn btn-cancel" id="cancelTransferBtn">取消</button>
+            <button class="modal-btn btn-confirm" id="sendTransferBtn">转账</button>
+        </div>
+        <div style="font-size:12px;color:#888;margin-top:8px;">非真实转账，仅展示</div>
+    </div>
+</div>
+
+<div class="avatar-modal" id="avatarModal">
+    <div class="avatar-modal-box">
+        <div class="avatar-modal-title">个性化设置</div>
+        <div class="avatar-row">
+            <div class="avatar-row-title">我的头像</div>
+            <button class="avatar-btn" id="myAvatarBtn">本地上传</button>
+        </div>
+        <div class="avatar-row">
+            <div class="avatar-row-title">对方头像</div>
+            <button class="avatar-btn" id="roleAvatarBtn">本地上传</button>
+        </div>
+        <div class="avatar-row">
+            <div class="avatar-row-title">聊天壁纸</div>
+            <button class="avatar-btn" id="wallpaperBtn">本地上传</button>
+        </div>
+        <div class="avatar-close" id="closeAvatarBtn">关闭</div>
+    </div>
+</div>
+
+<div class="api-modal" id="apiModal">
+    <div class="api-modal-box">
+        <div class="api-title">API 设置</div>
+        <div class="api-item">
+            <label class="api-label">API Key</label>
+            <input type="password" id="apiKeyInput" class="api-input" placeholder="请输入API Key">
+        </div>
+        <div class="api-item">
+            <label class="api-label">接口地址</label>
+            <input id="apiUrlInput" class="api-input" placeholder="https://api.example.com">
+        </div>
+        <div class="api-item">
+            <label class="api-label">模型名称</label>
+            <input id="apiModelInput" class="api-input" placeholder="deepseek-reasoner">
+        </div>
+        <button class="api-save" id="saveApiBtn">保存设置</button>
+        <div class="api-close" id="closeApiBtn">关闭</div>
+    </div>
+</div>
+
+<script>
+const HOUR = 3600000;
+const negativeWords = ["滚","傻逼","废物","垃圾","去死","蠢","有病","脑残","讨厌","闭嘴","骂"];
+const positiveWords = ["爱你","喜欢你","真棒","厉害","好棒","可爱","谢谢","夸","棒棒","好看"];
+
+let mood = { events: [], PA: 0, NA: 0, label: "平静" };
+let tempBranchIndex = 0;
+
+function calcMood() {
+  let PA = 0, NA = 0;
+  const now = Date.now();
+  for (const e of mood.events) {
+    const delta = now - e.ts;
+    const weight = Math.pow(1 + delta / (4 * HOUR), -1);
+    if (e.valence > 0) PA += e.valence * weight;
+    else NA += Math.abs(e.valence) * weight;
+  }
+  mood.PA = Math.max(0, PA);
+  mood.NA = Math.max(0, NA);
+  updateMoodBadge();
+}
+
+function updateMoodBadge() {
+  const { PA, NA } = mood;
+  if (PA >= 25) mood.label = "开心";
+  else if (PA >= 12) mood.label = "舒畅";
+  else if (NA >= 25) mood.label = "生气";
+  else if (NA >= 10) mood.label = "失落";
+  else mood.label = "平静";
+
+  const badge = document.getElementById('moodBadge');
+  badge.className = 'emotion-badge';
+  const emoClass = {
+    "开心": "emo-happy",
+    "舒畅": "emo-good",
+    "生气": "emo-angry",
+    "失落": "emo-sad",
+    "平静": "emo-calm"
+  };
+  badge.classList.add(emoClass[mood.label]);
+  badge.innerText = mood.label;
+}
+
+function addMoodEvent(v) {
+  mood.events.push({ ts: Date.now(), valence: v });
+  if (mood.events.length > 60) mood.events.shift();
+  calcMood();
+}
+
+function checkInstantEmotion(text) {
+  let isNeg = negativeWords.some(w => text.includes(w));
+  let isPos = positiveWords.some(w => text.includes(w));
+  if (isNeg) addMoodEvent(-40);
+  if (isPos) addMoodEvent(40);
+}
+
+setInterval(calcMood, 8000);
+
+function safeParse(key, defaultValue) {
+    try {
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : defaultValue;
+    } catch(e) {
+        localStorage.removeItem(key);
+        return defaultValue;
+    }
+}
+
+function debounce(fn, delay) {
+    let timer;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), delay);
+    }
+}
+
+// 头像上传
+function uploadMyAvatar(){
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'image/*';
+    inp.onchange = e=>{
+        const f = e.target.files[0];
+        if(!f) return;
+        const r = new FileReader();
+        r.onload = e=>{
+            localStorage.setItem('myAvatar', e.target.result);
+            renderChatMsg();
+            closeAvatarModal();
+        }
+        r.readAsDataURL(f);
+    }
+    inp.click();
+}
+function uploadRoleAvatar(){
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'image/*';
+    inp.onchange = e=>{
+        const f = e.target.files[0];
+        if(!f) return;
+        const r = new FileReader();
+        r.onload = e=>{
+            localStorage.setItem('roleAvatar', e.target.result);
+            renderChatMsg();
+            closeAvatarModal();
+        }
+        r.readAsDataURL(f);
+    }
+    inp.click();
+}
+
+let roleDataList = safeParse("branchChatData", []);
+let currentRoleIndex = -1, currentBranchIndex = 0;
+let tempNewRoleIndex = -1;
+let editBranchRoleIndex = -1;
+let editBranchIndex = -1;
+let apiConfig = safeParse("apiConfig", {
+    key: "",
+    url: "https://api.deepseek.com/chat/completions",
+    model: "deepseek-reasoner"
+});
+const emojiList = ["😀","😁","😂","🤣","😃","😄","😅","😆","😉","😊","😋","😎","😍","🥰","😘","😗"];
+
+init();
+function init() {
+    updateTime();
+    setInterval(updateTime, 1000);
+    initEmoji();
+    loadAvatarAndWallpaper();
+    renderRoleList();
+    bindAllEvents(); // 所有事件统一在这里绑定
+    renderChatMsg();
+    loadApiConfig();
+    updateMoodBadge();
+
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.role-menu').forEach(m => m.style.display = 'none');
+    });
+}
+
+// ✅ 重写：一键清空所有数据（双重保险+错误捕获）
+function clearAllData() {
+    try {
+        // 双重确认
+        if (!confirm("⚠️ 最终确认：清空所有数据？\n\n所有角色、分支、聊天记录、头像、壁纸和API设置都会被永久删除，无法恢复！")) {
+            return;
+        }
+
+        // 第一步：强制清空所有本地存储（最可靠的方式）
+        localStorage.clear();
+        
+        // 第二步：重置所有全局变量
+        roleDataList = [];
+        currentRoleIndex = -1;
+        currentBranchIndex = 0;
+        tempNewRoleIndex = -1;
+        editBranchRoleIndex = -1;
+        editBranchIndex = -1;
+        mood = { events: [], PA: 0, NA: 0, label: "平静" };
+        apiConfig = {
+            key: "",
+            url: "https://api.deepseek.com/chat/completions",
+            model: "deepseek-reasoner"
+        };
+
+        // 第三步：重置所有DOM元素
+        document.getElementById('chatNavName').innerText = '未选择角色';
+        document.getElementById('branchTip').innerText = '单分支会话';
+        document.getElementById('chatWallpaper').style.display = 'none';
+        document.getElementById('chatWallpaper').style.backgroundImage = '';
+
+        // 第四步：重新渲染整个界面
+        renderRoleList();
+        renderChatMsg();
+        updateMoodBadge();
+        loadApiConfig();
+
+        alert("✅ 所有数据已成功清空！");
+
+    } catch (error) {
+        // 捕获任何错误，给用户提示
+        console.error("清空数据出错：", error);
+        alert("❌ 清空失败！请尝试刷新页面后再试，或手动清除浏览器缓存。");
+    }
+}
+
+function loadAvatarAndWallpaper() {
+    const wallpaper = localStorage.getItem("chatWallpaperBase64");
+    if(wallpaper) {
+        const bg = document.getElementById('chatWallpaper');
+        bg.style.backgroundImage = `url(${wallpaper})`;
+        bg.style.display = 'block';
+    }
+    renderChatMsg();
+}
+
+document.getElementById('wallpaperPick').addEventListener('change', function(e){
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        localStorage.setItem("chatWallpaperBase64", e.target.result);
+        const bg = document.getElementById('chatWallpaper');
+        bg.style.backgroundImage = `url(${e.target.result})`;
+        bg.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+});
+
+function openMenu(idx){
+    event.stopPropagation();
+    document.querySelectorAll('.role-menu').forEach(m => m.style.display = 'none');
+    document.getElementById('menu-'+idx).style.display = 'block';
+}
+
+function editRole(idx){
+    document.querySelectorAll('.role-menu').forEach(m => m.style.display = 'none');
+    const r = roleDataList[idx];
+    document.getElementById('roleNameInput').value = r.name || '';
+    document.getElementById('rolePromptText').value = r.prompt || '';
+    tempNewRoleIndex = idx;
+    document.getElementById('rolePromptModal').classList.add('show');
+}
+
+// 角色删除
+function deleteRole(idx){
+    if (!confirm("确定要彻底删除该角色？所有分支、聊天记录将全部清空，无法恢复！")) {
+        return;
+    }
+    roleDataList.splice(idx, 1);
+    currentRoleIndex = -1;
+    saveLocalData();
+    renderRoleList();
+    renderChatMsg();
+    document.getElementById('chatNavName').innerText = '未选择角色';
+}
+
+function addNewRole() {
+    const defaultPrompt = `【人物信息】
+姓名：新角色
+性格：友好、温柔、善解人意`;
+
+    roleDataList.push({
+        name: "新角色",
+        prompt: defaultPrompt,
+        branchList: [{ branchName: "默认会话", chatLog: [] }]
+    });
+
+    tempNewRoleIndex = roleDataList.length - 1;
+    document.getElementById('roleNameInput').value = "新角色";
+    document.getElementById('rolePromptText').value = defaultPrompt;
+    document.getElementById('rolePromptModal').classList.add('show');
+}
+
+function saveNewRolePrompt() {
+    const name = document.getElementById('roleNameInput').value.trim() || "未命名角色";
+    const text = document.getElementById('rolePromptText').value.trim();
+    if (tempNewRoleIndex < 0 || !roleDataList[tempNewRoleIndex]) {
+        closeRolePromptModal();
+        return;
+    }
+    
+    roleDataList[tempNewRoleIndex].prompt = text;
+    roleDataList[tempNewRoleIndex].name = name;
+    saveLocalData();
+    closeRolePromptModal();
+    renderRoleList();
+    switchRole(tempNewRoleIndex);
+}
+
+function createNewBranch() {
+    if (currentRoleIndex < 0) {
+        alert("请先选择角色");
+        return;
+    }
+    roleDataList[currentRoleIndex].branchList.push({
+        branchName:`分支${roleDataList[currentRoleIndex].branchList.length+1}`,
+        chatLog:[]
+    });
+    currentBranchIndex = roleDataList[currentRoleIndex].branchList.length - 1;
+    saveLocalData();
+    renderRoleList();
+    renderChatMsg();
+}
+
+function switchRole(idx, bIdx=0) {
+    currentRoleIndex = idx;
+    currentBranchIndex = bIdx;
+    renderRoleList();
+    const r = roleDataList[idx];
+    document.getElementById('chatNavName').innerText = r.name || "未命名";
+    document.getElementById('branchTip').innerText = `分支${bIdx+1}：${r.branchList[bIdx].branchName}`;
+    renderChatMsg();
+}
+
+function renderRoleList() {
+    let h = '';
+    roleDataList.forEach((r,i) => {
+        h += `
+        <div class="role-item ${i==currentRoleIndex?'active':''}" data-role="${i}">
+            ${r.name||"未命名"}
+            <div class="role-more" data-menu="${i}">⋮</div>
+            <div class="role-menu" id="menu-${i}">
+                <div data-edit="${i}">编辑</div>
+                <div data-delete="${i}">删除</div>
+            </div>
+        </div>`;
+        r.branchList.forEach((b,j) => {
+            h += `<div class="branch-btn ${i==currentRoleIndex&&j==currentBranchIndex?'active':''}" data-branch="${i}-${j}">
+                ${b.branchName}
+                <span data-editbranch="${i}-${j}" style="margin-left:6px;cursor:pointer;font-size:12px;">✏️</span>
+            </div>`;
+        });
+    });
+    document.getElementById('roleList').innerHTML = h;
+}
+
+function openBranchEditModal(roleIdx, branchIdx) {
+    event.stopPropagation();
+    editBranchRoleIndex = roleIdx;
+    editBranchIndex = branchIdx;
+    
+    const branchName = roleDataList[roleIdx].branchList[branchIdx].branchName;
+    document.getElementById('branchEditName').value = branchName;
+    
+    document.getElementById('branchEditModal').classList.add('show');
+}
+
+function closeBranchEditModal() {
+    document.getElementById('branchEditModal').classList.remove('show');
+    editBranchRoleIndex = -1;
+    editBranchIndex = -1;
+}
+
+function saveBranchName() {
+    const newName = document.getElementById('branchEditName').value.trim();
+    if (!newName) {
+        alert("分支名称不能为空！");
+        return;
+    }
+    
+    roleDataList[editBranchRoleIndex].branchList[editBranchIndex].branchName = newName;
+    saveLocalData();
+    
+    renderRoleList();
+    switchRole(editBranchRoleIndex, editBranchIndex);
+    
+    closeBranchEditModal();
+}
+
+function deleteCurrentBranch() {
+    const branches = roleDataList[editBranchRoleIndex].branchList;
+    
+    if (branches.length <= 1) {
+        alert("⚠️ 每个角色至少需要保留1个分支，无法删除！");
+        return;
+    }
+    
+    if (!confirm("确定删除该分支？\n\n所有聊天记录将永久丢失，无法恢复！")) {
+        return;
+    }
+    
+    branches.splice(editBranchIndex, 1);
+    saveLocalData();
+    
+    currentBranchIndex = 0;
+    renderRoleList();
+    switchRole(editBranchRoleIndex, 0);
+    
+    closeBranchEditModal();
+}
+
+function getLog() {
+    if (currentRoleIndex < 0 || !roleDataList[currentRoleIndex]) return [];
+    const b = roleDataList[currentRoleIndex].branchList;
+    if (!b || !b[currentBranchIndex]) return [];
+    return b[currentBranchIndex].chatLog || [];
+}
+
+// 渲染聊天消息
+function renderChatMsg() {
+    const box = document.getElementById('chatBox');
+    const log = getLog();
+    const myAvt = localStorage.getItem('myAvatar') || '';
+    const roleAvt = localStorage.getItem('roleAvatar') || '';
+    
+    let h = `<div class="bg-layer"></div><div class="mask-layer"></div>`;
+    
+    if(log.length === 0){
+        h += `
+        <div class="msg-role">
+            <div class="avatar"><img src="${roleAvt}"></div>
+            <div class="role-text">你好呀！有什么可以帮你的~</div>
+        </div>`;
+        box.innerHTML = h;
+        return;
+    }
+
+    log.forEach(m => {
+        const time = new Date(m.time).toLocaleTimeString().slice(0,5);
+        const q = m.quote ? `<div class="quote-content">${m.quote}</div>` : '';
+        
+        if (m.type === 'self') {
+            h += `<div class="msg-self"><div class="self-text">${q}${m.content}<div class="msg-time">${time}</div></div><div class="avatar"><img src="${myAvt}"></div></div>`;
+        } else {
+            h += `<div class="msg-role"><div class="avatar"><img src="${roleAvt}"></div><div class="role-text">${q}${m.content}<div class="msg-time">${time}</div></div></div>`;
+        }
+    });
+    box.innerHTML = h;
+    setTimeout(() => box.scrollTop = box.scrollHeight, 50);
+}
+
+const saveLocalData = debounce(() => {
+    localStorage.setItem('branchChatData', JSON.stringify(roleDataList));
+}, 300);
+
+function clearCurrentChat(){
+    if(currentRoleIndex < 0) return;
+    if(confirm("确定清空当前分支的所有聊天记录？")){
+        getLog().length = 0;
+        renderChatMsg();
+        saveLocalData();
+    }
+}
+
+// 发送消息
+function sendMsg() {
+    const text = document.getElementById('sendText').value.trim();
+    if (currentRoleIndex < 0) { 
+        alert("请先选择角色"); 
+        return; 
+    }
+    if (!text) return;
+
+    checkInstantEmotion(text);
+    getLog().push({type:'self',content:text,time:Date.now()});
+    document.getElementById('sendText').value = '';
+    document.getElementById('emojiPanel').classList.remove('show');
+    document.getElementById('morePanel').classList.remove('show');
+    
+    renderChatMsg();
+    saveLocalData();
+    
+    setTimeout(()=>{
+        getLog().push({type:'role',content:'我收到啦！😊',time:Date.now()});
+        renderChatMsg();
+        saveLocalData();
+    },600);
+}
+
+function reRollLastMsg() {
+    const log = getLog();
+    let i = log.length-1;
+    while (i >= 0 && log[i].type !== 'self') i--;
+    if (i < 0) return;
+    log.splice(i+1);
+    renderChatMsg();
+}
+
+function updateTime() {
+    const now = new Date();
+    document.getElementById('statusTime').innerText = `${String(now.getHours()).padStart(2,0)}:${String(now.getMinutes()).padStart(2,0)}`;
+}
+
+function initEmoji() {
+    let h = '';
+    emojiList.forEach(e => h += `<div class="emoji-item" data-emoji="${e}">${e}</div>`);
+    document.getElementById('emojiPanel').innerHTML = h;
+}
+
+function insertEmoji(e) { document.getElementById('sendText').value += e; }
+function toggleEmojiPanel() { document.getElementById('emojiPanel').classList.toggle('show'); document.getElementById('morePanel').classList.remove('show'); }
+function toggleMorePanel() { document.getElementById('morePanel').classList.toggle('show'); document.getElementById('emojiPanel').classList.remove('show'); }
+function autoResizeTextarea(t) { t.style.height = '40px'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; }
+
+// 侧边栏切换
+function toggleRoleNav() { 
+    const nav = document.getElementById('leftNav'); 
+    nav.classList.toggle('collapsed');
+}
+
+function closeRolePromptModal(){document.getElementById('rolePromptModal').classList.remove('show');}
+
+function openApiModal(){document.getElementById('apiModal').classList.add('show');}
+function closeApiModal(){document.getElementById('apiModal').classList.remove('show');}
+function loadApiConfig(){
+    document.getElementById('apiKeyInput').value=apiConfig.key||'';
+    document.getElementById('apiUrlInput').value=apiConfig.url||'';
+    document.getElementById('apiModelInput').value=apiConfig.model||'';
+}
+function saveApiSettings(){
+    apiConfig={
+        key:document.getElementById('apiKeyInput').value,
+        url:document.getElementById('apiUrlInput').value,
+        model:document.getElementById('apiModelInput').value
+    };
+    localStorage.setItem('apiConfig',JSON.stringify(apiConfig));
+    alert('API设置保存成功！');
+    closeApiModal();
+}
+
+function openAvatarModal(){document.getElementById('avatarModal').classList.add('show');}
+function closeAvatarModal(){document.getElementById('avatarModal').classList.remove('show');}
+
+function openImagePicker(){document.getElementById('imagePicker').click();}
+document.getElementById('imagePicker').onchange=e=>{
+    const f=e.target.files[0];if(!f)return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        getLog().push({type:'self',content:`<img src="${e.target.result}" class="chat-img">`,time:Date.now()});
+        renderChatMsg();
+        saveLocalData();
+    };
+    reader.readAsDataURL(f);
+};
+
+function openMusicInput(){document.getElementById('musicModal').classList.add('show');}
+function closeMusicModal(){document.getElementById('musicModal').classList.remove('show');}
+function sendMusic(){const u=document.getElementById('musicUrl').value;if(!u)return;getLog().push({type:'self',content:`<div class="music-card"><audio controls src="${u}"></div>`,time:Date.now()});renderChatMsg();saveLocalData();closeMusicModal();}
+document.getElementById('audioPicker').onchange=e=>{const f=e.target.files[0];if(!f)return;getLog().push({type:'self',content:`<div class="music-card"><audio controls src="${URL.createObjectURL(f)}"></div>`,time:Date.now()});renderChatMsg();saveLocalData();};
+function openLocationInput(){document.getElementById('locationModal').classList.add('show');}
+function closeLocationModal(){document.getElementById('locationModal').classList.remove('show');}
+function sendLocation(){const t=document.getElementById('locationText').value;if(!t)return;getLog().push({type:'self',content:`<div class="location-card">📍 ${t}</div>`,time:Date.now()});renderChatMsg();saveLocalData();closeLocationModal();}
+function openTransferInput(){document.getElementById('transferModal').classList.add('show');}
+function closeTransferModal(){document.getElementById('transferModal').classList.remove('show');}
+function sendTransfer(){const m=document.getElementById('transferMoney').value;if(!m)return;const n=document.getElementById('transferNote').value;getLog().push({type:'self',content:`<div class="transfer-card"><div class="transfer-money">¥${m}</div><div class="transfer-note">${n||''}</div></div>`,time:Date.now()});renderChatMsg();saveLocalData();closeTransferModal();}
+function openTranslateModal(){alert("翻译功能开发中");}
+function openMemoryModal(){alert("情绪记忆系统运行中");}
+
+// ✅ 所有事件统一在这里绑定（彻底解决内联onclick失效问题）
+function bindAllEvents() {
+    // 一键清空按钮（核心修复）
+    document.getElementById('clearAllBtn').addEventListener('click', clearAllData);
+
+    // 发送按钮
+    document.getElementById('sendBtn').addEventListener('click', sendMsg);
+    
+    // 回车发送
+    const t = document.getElementById('sendText');
+    t.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { 
+            e.preventDefault(); 
+            sendMsg(); 
+        }
+    });
+    t.addEventListener('input', function() { autoResizeTextarea(this); });
+    
+    // 侧边栏切换
+    document.getElementById('toggleNavBtn').addEventListener('click', toggleRoleNav);
+    
+    // 新建角色
+    document.getElementById('addRoleBtn').addEventListener('click', addNewRole);
+    
+    // 角色菜单事件委托
+    document.getElementById('roleList').addEventListener('click', function(e) {
+        const target = e.target;
+        
+        // 切换角色
+        if (target.classList.contains('role-item')) {
+            const idx = parseInt(target.dataset.role);
+            switchRole(idx);
+        }
+        
+        // 打开角色菜单
+        if (target.classList.contains('role-more')) {
+            const idx = parseInt(target.dataset.menu);
+            openMenu(idx);
+        }
+        
+        // 编辑角色
+        if (target.dataset.edit) {
+            const idx = parseInt(target.dataset.edit);
+            editRole(idx);
+        }
+        
+        // 删除角色
+        if (target.dataset.delete) {
+            const idx = parseInt(target.dataset.delete);
+            deleteRole(idx);
+        }
+        
+        // 切换分支
+        if (target.classList.contains('branch-btn')) {
+            const [roleIdx, branchIdx] = target.dataset.branch.split('-').map(Number);
+            switchRole(roleIdx, branchIdx);
+        }
+        
+        // 编辑分支
+        if (target.dataset.editbranch) {
+            const [roleIdx, branchIdx] = target.dataset.editbranch.split('-').map(Number);
+            openBranchEditModal(roleIdx, branchIdx);
+        }
+    });
+    
+    // 角色弹窗
+    document.getElementById('cancelRoleBtn').addEventListener('click', closeRolePromptModal);
+    document.getElementById('saveRoleBtn').addEventListener('click', saveNewRolePrompt);
+    
+    // 分支弹窗
+    document.getElementById('cancelBranchBtn').addEventListener('click', closeBranchEditModal);
+    document.getElementById('saveBranchBtn').addEventListener('click', saveBranchName);
+    document.getElementById('deleteBranchBtn').addEventListener('click', deleteCurrentBranch);
+    
+    // 工具栏
+    document.getElementById('emojiBtn').addEventListener('click', toggleEmojiPanel);
+    document.getElementById('moreBtn').addEventListener('click', toggleMorePanel);
+    document.getElementById('newBranchBtn').addEventListener('click', createNewBranch);
+    document.getElementById('clearChatBtn').addEventListener('click', clearCurrentChat);
+    document.getElementById('rerollBtn').addEventListener('click', reRollLastMsg);
+    document.getElementById('musicBtn').addEventListener('click', openMusicInput);
+    document.getElementById('translateBtn').addEventListener('click', openTranslateModal);
+    document.getElementById('memoryBtn').addEventListener('click', openMemoryModal);
+    
+    // 表情面板
+    document.getElementById('emojiPanel').addEventListener('click', function(e) {
+        if (e.target.classList.contains('emoji-item')) {
+            insertEmoji(e.target.dataset.emoji);
+        }
+    });
+    
+    // 更多面板
+    document.getElementById('imageItem').addEventListener('click', openImagePicker);
+    document.getElementById('musicItem').addEventListener('click', openMusicInput);
+    document.getElementById('locationItem').addEventListener('click', openLocationInput);
+    document.getElementById('transferItem').addEventListener('click', openTransferInput);
+    
+    // 音乐弹窗
+    document.getElementById('cancelMusicBtn').addEventListener('click', closeMusicModal);
+    document.getElementById('sendMusicBtn').addEventListener('click', sendMusic);
+    document.getElementById('localMusicBtn').addEventListener('click', () => {
+        document.getElementById('audioPicker').click();
+        closeMusicModal();
+    });
+    
+    // 位置弹窗
+    document.getElementById('cancelLocationBtn').addEventListener('click', closeLocationModal);
+    document.getElementById('sendLocationBtn').addEventListener('click', sendLocation);
+    
+    // 转账弹窗
+    document.getElementById('cancelTransferBtn').addEventListener('click', closeTransferModal);
+    document.getElementById('sendTransferBtn').addEventListener('click', sendTransfer);
+    
+    // 头像设置
+    document.getElementById('avatarBtn').addEventListener('click', openAvatarModal);
+    document.getElementById('closeAvatarBtn').addEventListener('click', closeAvatarModal);
+    document.getElementById('myAvatarBtn').addEventListener('click', uploadMyAvatar);
+    document.getElementById('roleAvatarBtn').addEventListener('click', uploadRoleAvatar);
+    document.getElementById('wallpaperBtn').addEventListener('click', () => {
+        document.getElementById('wallpaperPick').click();
+        closeAvatarModal();
+    });
+    
+    // API设置
+    document.getElementById('apiBtn').addEventListener('click', openApiModal);
+    document.getElementById('closeApiBtn').addEventListener('click', closeApiModal);
+    document.getElementById('saveApiBtn').addEventListener('click', saveApiSettings);
+}
+</script>
+</body>
+</html>
