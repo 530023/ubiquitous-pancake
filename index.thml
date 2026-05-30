@@ -301,7 +301,6 @@
     <div class="nav-title">角色&会话分支</div>
     <div class="role-list-container" id="roleList"></div>
     <div class="add-role" id="addRoleBtn">+ 新建角色</div>
-    <!-- 移除了内联onclick，改用JS绑定 -->
     <div class="clear-all-btn" id="clearAllBtn">🗑️ 清空所有数据</div>
 </div>
 
@@ -606,18 +605,15 @@ function init() {
     });
 }
 
-// ✅ 重写：一键清空所有数据（双重保险+错误捕获）
+// 一键清空所有数据
 function clearAllData() {
     try {
-        // 双重确认
         if (!confirm("⚠️ 最终确认：清空所有数据？\n\n所有角色、分支、聊天记录、头像、壁纸和API设置都会被永久删除，无法恢复！")) {
             return;
         }
 
-        // 第一步：强制清空所有本地存储（最可靠的方式）
         localStorage.clear();
         
-        // 第二步：重置所有全局变量
         roleDataList = [];
         currentRoleIndex = -1;
         currentBranchIndex = 0;
@@ -631,13 +627,11 @@ function clearAllData() {
             model: "deepseek-reasoner"
         };
 
-        // 第三步：重置所有DOM元素
         document.getElementById('chatNavName').innerText = '未选择角色';
         document.getElementById('branchTip').innerText = '单分支会话';
         document.getElementById('chatWallpaper').style.display = 'none';
         document.getElementById('chatWallpaper').style.backgroundImage = '';
 
-        // 第四步：重新渲染整个界面
         renderRoleList();
         renderChatMsg();
         updateMoodBadge();
@@ -646,7 +640,6 @@ function clearAllData() {
         alert("✅ 所有数据已成功清空！");
 
     } catch (error) {
-        // 捕获任何错误，给用户提示
         console.error("清空数据出错：", error);
         alert("❌ 清空失败！请尝试刷新页面后再试，或手动清除浏览器缓存。");
     }
@@ -995,15 +988,11 @@ function sendTransfer(){const m=document.getElementById('transferMoney').value;i
 function openTranslateModal(){alert("翻译功能开发中");}
 function openMemoryModal(){alert("情绪记忆系统运行中");}
 
-// ✅ 所有事件统一在这里绑定（彻底解决内联onclick失效问题）
+// 所有事件统一绑定
 function bindAllEvents() {
-    // 一键清空按钮（核心修复）
     document.getElementById('clearAllBtn').addEventListener('click', clearAllData);
-
-    // 发送按钮
     document.getElementById('sendBtn').addEventListener('click', sendMsg);
     
-    // 回车发送
     const t = document.getElementById('sendText');
     t.addEventListener('keydown', e => {
         if (e.key === 'Enter' && !e.shiftKey) { 
@@ -1011,65 +1000,44 @@ function bindAllEvents() {
             sendMsg(); 
         }
     });
-    t.addEventListener('input', function() { autoResizeTextarea(this); });
     
-    // 侧边栏切换
     document.getElementById('toggleNavBtn').addEventListener('click', toggleRoleNav);
-    
-    // 新建角色
     document.getElementById('addRoleBtn').addEventListener('click', addNewRole);
     
-    // 角色菜单事件委托
     document.getElementById('roleList').addEventListener('click', function(e) {
         const target = e.target;
-        
-        // 切换角色
         if (target.classList.contains('role-item')) {
             const idx = parseInt(target.dataset.role);
             switchRole(idx);
         }
-        
-        // 打开角色菜单
         if (target.classList.contains('role-more')) {
             const idx = parseInt(target.dataset.menu);
             openMenu(idx);
         }
-        
-        // 编辑角色
         if (target.dataset.edit) {
             const idx = parseInt(target.dataset.edit);
             editRole(idx);
         }
-        
-        // 删除角色
         if (target.dataset.delete) {
             const idx = parseInt(target.dataset.delete);
             deleteRole(idx);
         }
-        
-        // 切换分支
         if (target.classList.contains('branch-btn')) {
             const [roleIdx, branchIdx] = target.dataset.branch.split('-').map(Number);
             switchRole(roleIdx, branchIdx);
         }
-        
-        // 编辑分支
         if (target.dataset.editbranch) {
             const [roleIdx, branchIdx] = target.dataset.editbranch.split('-').map(Number);
             openBranchEditModal(roleIdx, branchIdx);
         }
     });
     
-    // 角色弹窗
     document.getElementById('cancelRoleBtn').addEventListener('click', closeRolePromptModal);
     document.getElementById('saveRoleBtn').addEventListener('click', saveNewRolePrompt);
-    
-    // 分支弹窗
     document.getElementById('cancelBranchBtn').addEventListener('click', closeBranchEditModal);
     document.getElementById('saveBranchBtn').addEventListener('click', saveBranchName);
     document.getElementById('deleteBranchBtn').addEventListener('click', deleteCurrentBranch);
     
-    // 工具栏
     document.getElementById('emojiBtn').addEventListener('click', toggleEmojiPanel);
     document.getElementById('moreBtn').addEventListener('click', toggleMorePanel);
     document.getElementById('newBranchBtn').addEventListener('click', createNewBranch);
@@ -1079,20 +1047,17 @@ function bindAllEvents() {
     document.getElementById('translateBtn').addEventListener('click', openTranslateModal);
     document.getElementById('memoryBtn').addEventListener('click', openMemoryModal);
     
-    // 表情面板
     document.getElementById('emojiPanel').addEventListener('click', function(e) {
         if (e.target.classList.contains('emoji-item')) {
             insertEmoji(e.target.dataset.emoji);
         }
     });
     
-    // 更多面板
     document.getElementById('imageItem').addEventListener('click', openImagePicker);
     document.getElementById('musicItem').addEventListener('click', openMusicInput);
     document.getElementById('locationItem').addEventListener('click', openLocationInput);
     document.getElementById('transferItem').addEventListener('click', openTransferInput);
     
-    // 音乐弹窗
     document.getElementById('cancelMusicBtn').addEventListener('click', closeMusicModal);
     document.getElementById('sendMusicBtn').addEventListener('click', sendMusic);
     document.getElementById('localMusicBtn').addEventListener('click', () => {
@@ -1100,15 +1065,12 @@ function bindAllEvents() {
         closeMusicModal();
     });
     
-    // 位置弹窗
     document.getElementById('cancelLocationBtn').addEventListener('click', closeLocationModal);
     document.getElementById('sendLocationBtn').addEventListener('click', sendLocation);
     
-    // 转账弹窗
     document.getElementById('cancelTransferBtn').addEventListener('click', closeTransferModal);
     document.getElementById('sendTransferBtn').addEventListener('click', sendTransfer);
     
-    // 头像设置
     document.getElementById('avatarBtn').addEventListener('click', openAvatarModal);
     document.getElementById('closeAvatarBtn').addEventListener('click', closeAvatarModal);
     document.getElementById('myAvatarBtn').addEventListener('click', uploadMyAvatar);
@@ -1118,7 +1080,6 @@ function bindAllEvents() {
         closeAvatarModal();
     });
     
-    // API设置
     document.getElementById('apiBtn').addEventListener('click', openApiModal);
     document.getElementById('closeApiBtn').addEventListener('click', closeApiModal);
     document.getElementById('saveApiBtn').addEventListener('click', saveApiSettings);
